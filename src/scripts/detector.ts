@@ -121,6 +121,25 @@ const makeSignal = (
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+// Claude Code 真实的「中国用户」判定读取的是系统 IANA 时区。
+// 这两个是 Claude 侧真正会匹配的大陆时区，命中即等同被官方判定。
+const CLAUDE_TIMEZONES = new Set(["Asia/Shanghai", "Asia/Urumqi"]);
+// 其余大陆时区名（部分系统/旧数据仍在使用），同样等价于大陆环境。
+const CN_TIMEZONES = new Set([
+  "Asia/Shanghai",
+  "Asia/Urumqi",
+  "Asia/Chongqing",
+  "Asia/Chungking",
+  "Asia/Harbin",
+  "Asia/Kashgar",
+]);
+// 大中华区但非大陆，作为中等偏弱证据。
+const GREATER_CN_TIMEZONES = new Set([
+  "Asia/Hong_Kong",
+  "Asia/Macau",
+  "Asia/Taipei",
+]);
+
 const escapeText = (value: string) =>
   value.replace(/[&<>"']/g, (char) => {
     const map: Record<string, string> = {
@@ -133,45 +152,65 @@ const escapeText = (value: string) =>
     return map[char] ?? char;
   });
 
+const LANGUAGE_WEIGHT = 18;
+
+// 简体中文大陆变体：zh-CN / zh-Hans / 裸 zh。
+const isHansCN = (lang: string) =>
+  lang.startsWith("zh-cn") || lang.includes("hans") || lang === "zh";
+// 繁体 / 港澳台变体：zh-TW / zh-HK / zh-MO / Hant，属中文但非大陆。
+const isHant = (lang: string) =>
+  lang.startsWith("zh-tw") ||
+  lang.startsWith("zh-hk") ||
+  lang.startsWith("zh-mo") ||
+  lang.includes("hant");
+
 const languageScore = (languages: string[]) => {
   const normalized = languages.map((lang) => lang.toLowerCase());
   const first = normalized[0] ?? "";
-  const hasMainland = normalized.some(
-    (lang) => lang === "zh-cn" || lang === "zh-hans-cn" || lang === "zh-hans",
-  );
-  const hasChinese = normalized.some((lang) => lang.startsWith("zh"));
 
-  if (first === "zh-cn" || first === "zh-hans-cn") {
+  if (isHansCN(first)) {
     return makeSignal(
       "languages",
       "navigator.languages 首选语言",
       languages.join(", "),
-      22,
-      22,
+      LANGUAGE_WEIGHT,
+      LANGUAGE_WEIGHT,
       "强",
       "首选语言直接指向简体中文大陆环境，是浏览器侧强信号。",
     );
   }
 
-  if (hasMainland) {
+  if (isHant(first)) {
+    return makeSignal(
+      "languages",
+      "navigator.languages 繁体首选",
+      languages.join(", "),
+      Math.round(LANGUAGE_WEIGHT * 0.5),
+      LANGUAGE_WEIGHT,
+      "中",
+      "首选语言是繁体/港澳台变体，属中文环境但通常不是大陆，作中等证据。",
+    );
+  }
+
+  if (normalized.some(isHansCN)) {
     return makeSignal(
       "languages",
       "navigator.languages 包含简中",
       languages.join(", "),
-      14,
-      22,
+      Math.round(LANGUAGE_WEIGHT * 0.7),
+      LANGUAGE_WEIGHT,
       "中",
       "语言列表包含 zh-CN/zh-Hans，但不是首位，仍可作为中等证据。",
     );
   }
 
-  if (hasChinese) {
+  if (normalized.some((lang) => lang.startsWith("zh"))) {
     return makeSignal(
       "languages",
       "navigator.languages 中文变体",
       languages.join(", "),
-      5,
-      22,
+      Math.round(LANGUAGE_WEIGHT * 0.35),
+      LANGUAGE_WEIGHT,
       "弱",
       "中文变体可能来自台湾、香港、新加坡或多语言用户，不能单独判断大陆环境。",
     );
@@ -182,7 +221,7 @@ const languageScore = (languages: string[]) => {
     "navigator.languages",
     languages.join(", ") || "未暴露",
     -6,
-    22,
+    LANGUAGE_WEIGHT,
     "弱",
     "语言列表没有中文线索，对大陆环境判断形成轻微反证。",
   );
@@ -199,9 +238,9 @@ const intlLocaleScore = () => {
       "intl-locale",
       "Intl 日期/数字 Locale",
       compact,
-      16,
-      16,
-      "强",
+      8,
+      8,
+      "中",
       "浏览器用于日期或数字格式化的默认 locale 指向简体中文大陆语境。",
     );
   }
@@ -211,8 +250,8 @@ const intlLocaleScore = () => {
       "intl-locale",
       "Intl 日期/数字 Locale",
       compact,
-      5,
-      16,
+      4,
+      8,
       "弱",
       "默认格式化 locale 是中文变体，但不直接等同于中国大陆。",
     );
@@ -223,56 +262,77 @@ const intlLocaleScore = () => {
     "Intl 日期/数字 Locale",
     compact,
     0,
-    16,
+    8,
     "弱",
     "默认格式化 locale 没有提供中文大陆证据。",
   );
 };
+
+const TIMEZONE_WEIGHT = 34;
 
 const timezoneScore = () => {
   const options = Intl.DateTimeFormat().resolvedOptions();
   const zone = options.timeZone || "未知";
   const offsetMinutes = new Date().getTimezoneOffset();
   const offsetHours = -offsetMinutes / 60;
-  const mainlandZones = new Set([
-    "Asia/Shanghai",
-    "Asia/Chongqing",
-    "Asia/Harbin",
-    "Asia/Urumqi",
-  ]);
+  const value = `${zone}, UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}`;
 
-  if (mainlandZones.has(zone)) {
+  if (CLAUDE_TIMEZONES.has(zone)) {
+    return makeSignal(
+      "timezone",
+      "IANA 时区（Claude 判定字段）",
+      value,
+      TIMEZONE_WEIGHT,
+      TIMEZONE_WEIGHT,
+      "强",
+      "Claude Code 真实的大陆判定就是读取该时区并匹配 Asia/Shanghai / Asia/Urumqi；命中即等同被官方判定，是整条证据链里最关键的一项。",
+    );
+  }
+
+  if (CN_TIMEZONES.has(zone)) {
     return makeSignal(
       "timezone",
       "IANA 时区",
-      `${zone}, UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}`,
-      16,
-      16,
+      value,
+      TIMEZONE_WEIGHT,
+      TIMEZONE_WEIGHT,
+      "强",
+      "时区落在中国大陆时区名，等同大陆系统环境；Claude 主要匹配 Asia/Shanghai / Asia/Urumqi，但大陆环境几乎都会被判定。",
+    );
+  }
+
+  if (GREATER_CN_TIMEZONES.has(zone)) {
+    return makeSignal(
+      "timezone",
+      "IANA 时区",
+      value,
+      Math.round(TIMEZONE_WEIGHT * 0.6),
+      TIMEZONE_WEIGHT,
       "中",
-      "IANA 时区直接落在中国大陆常见时区名；VPN 和手动时区会影响该信号。",
+      "时区位于香港 / 澳门 / 台北，属大中华区但非大陆；Claude 的大陆判定通常不会命中，仅作中等证据。",
     );
   }
 
   if (offsetMinutes === -480) {
     return makeSignal(
       "timezone",
-      "getTimezoneOffset()",
-      `${zone}, UTC+8`,
-      8,
-      16,
+      "时区偏移 UTC+8",
+      value,
+      Math.round(TIMEZONE_WEIGHT * 0.35),
+      TIMEZONE_WEIGHT,
       "弱",
-      "UTC+8 同时覆盖新加坡、马来西亚、台湾、香港等地区，只能算弱到中等证据。",
+      "偏移是 UTC+8 但时区名不是大陆，也覆盖新加坡、马来西亚等地，且不匹配 Claude 检查的时区名，只能算弱证据。",
     );
   }
 
   return makeSignal(
     "timezone",
-    "时区偏移",
-    `${zone}, UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}`,
-    -4,
-    16,
-    "弱",
-    "时区不在 UTC+8，对中国大陆环境形成轻微反证。",
+    "IANA 时区",
+    value,
+    -8,
+    TIMEZONE_WEIGHT,
+    "中",
+    "时区既不在大陆也不在 UTC+8，Claude 的大陆判定不会命中，对大陆环境形成明确反证。",
   );
 };
 
@@ -292,8 +352,8 @@ const formatPatternScore = () => {
       "format-pattern",
       "日期 / 数字格式",
       value,
-      5,
-      8,
+      3,
+      3,
       "弱",
       "格式更接近中文环境习惯，但很多地区也使用年月日或相近数字格式。",
     );
@@ -304,7 +364,7 @@ const formatPatternScore = () => {
     "日期 / 数字格式",
     value,
     0,
-    8,
+    3,
     "弱",
     "默认格式没有明显中文大陆线索。",
   );
@@ -341,8 +401,13 @@ const fontScore = () => {
     "PingFang SC",
     "Heiti SC",
     "Songti SC",
+    "Hiragino Sans GB",
+    "STHeiti",
+    "STSong",
     "Noto Sans CJK SC",
     "Source Han Sans SC",
+    "Source Han Sans CN",
+    "WenQuanYi Micro Hei",
     "HarmonyOS Sans SC",
     "MiSans",
   ];
@@ -351,34 +416,37 @@ const fontScore = () => {
     ["Microsoft YaHei", "Microsoft YaHei UI", "SimSun", "NSimSun", "SimHei", "DengXian"].includes(font),
   );
   const simplifiedApple = detected.filter((font) =>
-    ["PingFang SC", "Heiti SC", "Songti SC"].includes(font),
+    ["PingFang SC", "Heiti SC", "Songti SC", "Hiragino Sans GB", "STHeiti", "STSong"].includes(font),
   );
   const cnVendor = detected.filter((font) => ["HarmonyOS Sans SC", "MiSans"].includes(font));
 
+  const FONT_WEIGHT = 14;
   let score = 0;
   let reason = "未探测到典型简体中文字体；字体探测受浏览器反指纹策略影响。";
   let confidence: Signal["confidence"] = "弱";
 
   if (mainlandWindows.length > 0) {
-    score += 14;
+    score += 10;
     confidence = "中";
     reason = "探测到微软雅黑/宋体/黑体等简中 Windows 常见字体，是中等证据。";
   }
 
   if (simplifiedApple.length > 0) {
-    score += 8;
-    confidence = score >= 14 ? "中" : "弱";
+    score += 6;
+    confidence = score >= 10 ? "中" : "弱";
     reason = "探测到苹方简体或 macOS/iOS 简体中文字体，可作为辅助证据。";
   }
 
   if (cnVendor.length > 0) {
-    score += 6;
-    confidence = score >= 14 ? "中" : "弱";
+    score += 4;
+    confidence = score >= 10 ? "中" : "弱";
     reason = "探测到华为/小米相关中文字体，可作为设备环境辅助证据。";
   }
 
-  if (detected.some((font) => ["Noto Sans CJK SC", "Source Han Sans SC"].includes(font))) {
-    score += 5;
+  if (detected.some((font) =>
+    ["Noto Sans CJK SC", "Source Han Sans SC", "Source Han Sans CN", "WenQuanYi Micro Hei"].includes(font),
+  )) {
+    score += 3;
     reason = "探测到简体中文 CJK 字体，但这类字体也常见于开发者或多语言系统。";
   }
 
@@ -386,8 +454,8 @@ const fontScore = () => {
     "fonts",
     "Canvas 中文字体探测",
     detected.join(", ") || "未命中",
-    clamp(score, 0, 20),
-    20,
+    clamp(score, 0, FONT_WEIGHT),
+    FONT_WEIGHT,
     confidence,
     reason,
   );
@@ -424,7 +492,8 @@ const uaScore = () => {
     (needle) => haystack.includes(needle),
   );
 
-  const score = clamp(cnBrowserHits.length * 4 + vendorHits.length * 3, 0, 12);
+  const UA_WEIGHT = 3;
+  const score = clamp(cnBrowserHits.length * 2 + vendorHits.length, 0, UA_WEIGHT);
 
   if (score > 0) {
     return makeSignal(
@@ -432,8 +501,8 @@ const uaScore = () => {
       "UA / 厂商弱线索",
       [...new Set([...cnBrowserHits, ...vendorHits])].join(", "),
       score,
-      12,
-      score >= 8 ? "中" : "弱",
+      UA_WEIGHT,
+      "弱",
       "User-Agent 或 Client Hints 暗示中文常见浏览器、WebView 或设备厂商，只能作为弱相关信号。",
     );
   }
@@ -443,7 +512,7 @@ const uaScore = () => {
     "UA / 厂商弱线索",
     `${platform}${brands ? ` · ${brands}` : ""}`,
     0,
-    12,
+    UA_WEIGHT,
     "弱",
     "UA 没有命中中文常见浏览器或设备厂商关键词。",
   );
@@ -506,6 +575,8 @@ const fetchIpInfo = async (): Promise<IpInfo> => {
   }
 };
 
+const IP_WEIGHT = 20;
+
 const ipScore = (info: IpInfo) => {
   if (info.error) {
     return makeSignal(
@@ -513,9 +584,9 @@ const ipScore = (info: IpInfo) => {
       "真实 IP 地理位置",
       `查询失败：${info.error}`,
       0,
-      35,
-      "强",
-      "IP 是强信号，但本次公开接口没有返回结果。",
+      IP_WEIGHT,
+      "中",
+      "IP 是佐证信号，但本次公开接口没有返回结果。",
     );
   }
 
@@ -526,10 +597,10 @@ const ipScore = (info: IpInfo) => {
       "ip",
       "真实 IP 地理位置",
       `${location || "CN"} · ${info.source}`,
-      35,
-      35,
+      IP_WEIGHT,
+      IP_WEIGHT,
       "强",
-      "公网 IP 国家码为 CN，是当前证据链里最强的大陆网络环境信号。",
+      "公网 IP 国家码为 CN，佐证真实身处大陆网络；但 Claude 侧真正判定靠的是系统时区，IP 仅作补强。",
     );
   }
 
@@ -538,8 +609,8 @@ const ipScore = (info: IpInfo) => {
       "ip",
       "真实 IP 地理位置",
       `${location} · ${info.source}`,
-      4,
-      35,
+      Math.round(IP_WEIGHT * 0.15),
+      IP_WEIGHT,
       "弱",
       "IP 位于中文地区但不是中国大陆，不能按大陆环境处理。",
     );
@@ -549,10 +620,10 @@ const ipScore = (info: IpInfo) => {
     "ip",
     "真实 IP 地理位置",
     `${location || "非 CN"} · ${info.source}`,
-    -16,
-    35,
-    "强",
-    "公网 IP 国家码不是 CN，对大陆网络环境形成强反证。",
+    -6,
+    IP_WEIGHT,
+    "中",
+    "公网 IP 国家码不是 CN，形成温和反证；但代理 / VPN 常让身处大陆者显示境外 IP，此时系统时区仍可能触发 Claude 判定，故不作强反证。",
   );
 };
 
@@ -586,22 +657,34 @@ const collectSignals = async (): Promise<ScanResult> => {
     ?.map((brand) => `${brand.brand} ${brand.version}`)
     .join(", ");
 
+  // Claude Code 的大陆判定核心就是系统 IANA 时区。命中它真正匹配的时区名，
+  // 无论 IP / 语言如何，都应视为「会被判定」，直接顶到高概率档。
+  const currentZone = timeOptions.timeZone || "";
+  const claudeTimezoneHit = CLAUDE_TIMEZONES.has(currentZone);
+  const cnTimezoneHit = CN_TIMEZONES.has(currentZone);
+
   let resultVerdict = "未抓到明显大陆环境";
   let resultSummary = "证据不足，宠物开始跺脚。";
 
-  if (score >= 75) {
+  if (claudeTimezoneHit || cnTimezoneHit || score >= 72) {
     resultVerdict = "高概率：中国大陆网络 / 浏览器环境";
-    resultSummary = "IP、语言、时区或字体信号高度聚合，证据链很响。";
-  } else if (score >= 55) {
+    resultSummary = claudeTimezoneHit
+      ? `系统时区为 ${currentZone}，正是 Claude Code 大陆判定直接匹配的时区名——即便用代理换了 IP，这一项也足以被判定。`
+      : cnTimezoneHit
+        ? `系统时区落在大陆时区（${currentZone}），是 Claude 侧最关键的判定字段，几乎必然被判定。`
+        : "时区、语言、字体等信号高度聚合，证据链很响。";
+  } else if (score >= 52) {
     resultVerdict = "中高概率：疑似中国大陆环境";
     resultSummary = "多项线索同向，但仍可能被 VPN、多语言系统或手动设置扰动。";
-  } else if (score >= 35) {
+  } else if (score >= 32) {
     resultVerdict = "混合信号：无法坐实";
     resultSummary = "有一些中文环境线索，但强信号不足。";
   }
 
+  const effectiveScore = (claudeTimezoneHit || cnTimezoneHit) ? Math.max(score, 78) : score;
+
   return {
-    score,
+    score: effectiveScore,
     verdict: resultVerdict,
     summary: resultSummary,
     signals,
@@ -681,7 +764,7 @@ const runScan = async () => {
   const result = await collectSignals();
   renderResult(result);
 
-  if (result.score >= 55) {
+  if (result.score >= 52) {
     scanState.textContent = "命中";
     document.body.dataset.verdict = "hit";
     setPet("laugh", "抓到了！证据链开始捧腹大笑。");
