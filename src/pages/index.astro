@@ -1,0 +1,130 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="一个透明展示浏览器地域信号的静态单页审查仪。"
+    />
+    <title>CCFH 中国环境信号审查仪</title>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="console" aria-labelledby="app-title">
+        <div class="brand-row">
+          <span class="brand-mark" aria-hidden="true">CC</span>
+          <div>
+            <p class="eyebrow">China Context Forensics HUD</p>
+            <h1 id="app-title">中国环境信号审查仪</h1>
+          </div>
+        </div>
+
+        <div class="pet-stage" data-pet-stage>
+          <div class="scan-grid" aria-hidden="true"></div>
+          <img
+            id="pet-image"
+            class="pet"
+            src="/assets/states/dario-idle.png"
+            width="396"
+            height="793"
+            alt="Q 版审查宠物抱臂盯着屏幕"
+          />
+          <p id="pet-line" class="pet-line">抱臂等待证据。别动，统计学正在热身。</p>
+        </div>
+
+        <div class="score-panel">
+          <div class="score-dial" aria-label="中国大陆环境信号分数">
+            <span id="score-value">--</span>
+            <span class="score-unit">/100</span>
+          </div>
+          <div>
+            <p id="verdict" class="verdict">尚未审查</p>
+            <p id="summary" class="summary">
+              点击开始后，本页会读取浏览器本地环境并请求一次 IP 地理信息。
+            </p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="run-scan" class="primary-button" type="button">
+            <span class="button-icon" aria-hidden="true">▶</span>
+            开始审查
+          </button>
+          <button id="reset-scan" class="ghost-button" type="button">
+            <span class="button-icon" aria-hidden="true">↺</span>
+            重置
+          </button>
+        </div>
+
+        <p class="privacy-note">
+          静态页面，本地评分；IP 查询会访问公开地理接口，其余浏览器信号不离开页面。
+        </p>
+      </section>
+
+      <section class="evidence" aria-labelledby="evidence-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Evidence Ledger</p>
+            <h2 id="evidence-title">证据账本</h2>
+          </div>
+          <span id="scan-state" class="status-pill">待命</span>
+        </div>
+
+        <div id="signal-list" class="signal-list" aria-live="polite">
+          <article class="signal empty">
+            <div>
+              <h3>等待第一次审查</h3>
+              <p>信号项会按权重、置信度和解释逐条展开。</p>
+            </div>
+            <span class="points">--</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="raw" aria-labelledby="raw-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Raw Browser Clues</p>
+            <h2 id="raw-title">原始线索</h2>
+          </div>
+        </div>
+
+        <dl class="raw-grid">
+          <div>
+            <dt>IP</dt>
+            <dd id="raw-ip">--</dd>
+          </div>
+          <div>
+            <dt>语言序列</dt>
+            <dd id="raw-languages">--</dd>
+          </div>
+          <div>
+            <dt>Intl Locale</dt>
+            <dd id="raw-locale">--</dd>
+          </div>
+          <div>
+            <dt>时区</dt>
+            <dd id="raw-timezone">--</dd>
+          </div>
+          <div>
+            <dt>中文字体</dt>
+            <dd id="raw-fonts">--</dd>
+          </div>
+          <div>
+            <dt>UA / 平台</dt>
+            <dd id="raw-ua">--</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+
+    <script>
+      import "../scripts/detector";
+    </script>
+  </body>
+</html>
