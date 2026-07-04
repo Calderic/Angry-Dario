@@ -14,93 +14,79 @@ import "../styles/global.css";
     <title>CCFH 中国环境信号审查仪</title>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar" aria-labelledby="app-title">
-        <div class="brand-lockup">
-          <span class="brand-mark" aria-hidden="true">CC</span>
-          <div>
-            <p class="eyebrow">China Context Forensics</p>
-            <h1 id="app-title">中国环境信号审查仪</h1>
+    <main class="desk">
+      <article class="sheet" aria-labelledby="app-title">
+        <header class="doc-head">
+          <p class="doc-org">China Context Forensics HQ · 环境信号审查处（戏仿）</p>
+          <h1 id="app-title">中国大陆环境信号审查报告</h1>
+          <div class="doc-rule" aria-hidden="true"></div>
+          <div class="doc-meta" aria-label="运行状态">
+            <span>编号：CCFH〔2026〕审字第 007 号</span>
+            <span>模式：<strong>静态审查</strong></span>
+            <span>证据源：<strong>7 项</strong></span>
+            <span>状态：<strong id="scan-state" class="live-field">待命</strong></span>
           </div>
-        </div>
+        </header>
 
-        <div class="top-metrics" aria-label="运行状态">
-          <div class="top-metric">
-            <span>模式</span>
-            <strong>静态审查</strong>
-          </div>
-          <div class="top-metric">
-            <span>证据源</span>
-            <strong>7 项</strong>
-          </div>
-          <div class="top-metric">
-            <span>状态</span>
-            <strong id="scan-state">待命</strong>
-          </div>
-        </div>
-      </header>
+        <section class="folio">
+          <section class="inspector" aria-label="审查员">
+            <figure class="photo">
+              <div class="photo-stage">
+                <img
+                  id="pet-image"
+                  class="pet"
+                  src="/assets/states/dario-idle.png"
+                  width="396"
+                  height="793"
+                  alt="Q 版审查宠物抱臂盯着屏幕"
+                />
+              </div>
+              <figcaption>审查员工作照 · 工号 001</figcaption>
+            </figure>
 
-      <section class="workbench" aria-label="审查工作台">
-        <section class="pet-panel" aria-label="审查宠物">
-          <div class="pet-stage">
-            <div class="scan-grid" aria-hidden="true"></div>
-            <img
-              id="pet-image"
-              class="pet"
-              src="/assets/states/dario-idle.png"
-              width="396"
-              height="793"
-              alt="Q 版审查宠物抱臂盯着屏幕"
-            />
             <p id="pet-line" class="pet-line">抱臂等待证据。别动，统计学正在热身。</p>
-          </div>
 
-          <div class="control-row">
-            <button id="run-scan" class="primary-button" type="button">
-              <span class="button-icon" aria-hidden="true">▶</span>
-              开始审查
-            </button>
-            <button id="reset-scan" class="icon-button" type="button" aria-label="重置">
-              ↺
-            </button>
-          </div>
-        </section>
-
-        <section class="result-panel" aria-labelledby="result-title">
-          <div class="result-head">
-            <div>
-              <p class="eyebrow">Score</p>
-              <h2 id="result-title">大陆环境指数</h2>
+            <div class="control-row">
+              <button id="run-scan" class="primary-button" type="button">
+                开始审查
+              </button>
+              <button id="reset-scan" class="ghost-button" type="button">
+                重新立案
+              </button>
             </div>
-            <div class="score-readout" aria-label="中国大陆环境信号分数">
+          </section>
+
+          <section class="ruling" aria-labelledby="result-title">
+            <h2 id="result-title" class="section-title">一、审查结论</h2>
+
+            <div class="score-row" aria-label="中国大陆环境信号分数">
               <span id="score-value">--</span>
-              <span>/100</span>
+              <span class="score-max">/ 100</span>
+              <span class="score-label">大陆环境指数</span>
             </div>
-          </div>
 
-          <div class="score-track" aria-hidden="true">
-            <div id="score-meter" class="score-meter"></div>
-          </div>
+            <div class="score-track" aria-hidden="true">
+              <div id="score-meter" class="score-meter"></div>
+            </div>
 
-          <p id="verdict" class="verdict">尚未审查</p>
-          <p id="summary" class="summary">
-            IP、语言、时区、字体、格式化习惯和 UA 线索会汇总成一个可解释分数。
-          </p>
+            <p id="verdict" class="verdict">尚未审查</p>
+            <p id="summary" class="summary">
+              IP、语言、时区、字体、格式化习惯和 UA 线索会汇总成一个可解释分数。
+            </p>
 
-          <div class="audit-notes" aria-label="审查边界">
-            <span>本地评分</span>
-            <span>公开 IP 探针</span>
-            <span>不写入数据库</span>
-          </div>
+            <div class="audit-notes" aria-label="审查边界">
+              <span>本地评分</span>
+              <span>公开 IP 探针</span>
+              <span>不写入数据库</span>
+            </div>
+
+            <div class="stamp stamp-hit" aria-hidden="true">情况属实</div>
+            <div class="stamp stamp-miss" aria-hidden="true">证据不足</div>
+          </section>
         </section>
 
-        <section class="evidence-panel" aria-labelledby="evidence-title">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Evidence Ledger</p>
-              <h2 id="evidence-title">证据账本</h2>
-            </div>
-          </div>
+        <section class="evidence" aria-labelledby="evidence-title">
+          <h2 id="evidence-title" class="section-title">二、证据账本</h2>
 
           <div id="signal-list" class="signal-list" aria-live="polite">
             <article class="signal empty">
@@ -112,43 +98,61 @@ import "../styles/global.css";
             </article>
           </div>
         </section>
-      </section>
 
-      <section class="raw-panel" aria-labelledby="raw-title">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Raw Clues</p>
-            <h2 id="raw-title">原始线索</h2>
-          </div>
-        </div>
+        <section class="raw" aria-labelledby="raw-title">
+          <h2 id="raw-title" class="section-title">附件一 · 原始线索</h2>
 
-        <dl class="raw-grid">
-          <div>
-            <dt>IP</dt>
-            <dd id="raw-ip">--</dd>
+          <dl class="raw-grid">
+            <div>
+              <dt>IP</dt>
+              <dd id="raw-ip">--</dd>
+            </div>
+            <div>
+              <dt>语言序列</dt>
+              <dd id="raw-languages">--</dd>
+            </div>
+            <div>
+              <dt>Intl Locale</dt>
+              <dd id="raw-locale">--</dd>
+            </div>
+            <div>
+              <dt>时区</dt>
+              <dd id="raw-timezone">--</dd>
+            </div>
+            <div>
+              <dt>中文字体</dt>
+              <dd id="raw-fonts">--</dd>
+            </div>
+            <div>
+              <dt>UA / 平台</dt>
+              <dd id="raw-ua">--</dd>
+            </div>
+          </dl>
+        </section>
+
+        <footer class="doc-foot">
+          <p class="disclaimer">
+            本报告纯属整活，不具任何效力。评分全部在浏览器本地完成，仅在点击审查时向公开
+            IP 接口发起一次查询，不记录、不上传、不建档。
+          </p>
+          <div class="signoff">
+            <p>CCFH 环境信号审查委员会</p>
+            <p>二〇二六年七月四日</p>
+            <svg class="seal" viewBox="0 0 200 200" aria-hidden="true">
+              <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="4" />
+              <path id="seal-arc" d="M 33 138 A 77 77 0 1 1 167 138" fill="none" />
+              <text class="seal-arc-text">
+                <textPath href="#seal-arc" startOffset="50%" text-anchor="middle">环境信号审查委员会</textPath>
+              </text>
+              <polygon
+                fill="currentColor"
+                points="100,76 105.6,92.2 122.8,92.6 109.1,103 114.1,119.4 100,109.6 85.9,119.4 90.9,103 77.2,92.6 94.4,92.2"
+              />
+              <text class="seal-sub" x="100" y="164" text-anchor="middle">审查专用章</text>
+            </svg>
           </div>
-          <div>
-            <dt>语言序列</dt>
-            <dd id="raw-languages">--</dd>
-          </div>
-          <div>
-            <dt>Intl Locale</dt>
-            <dd id="raw-locale">--</dd>
-          </div>
-          <div>
-            <dt>时区</dt>
-            <dd id="raw-timezone">--</dd>
-          </div>
-          <div>
-            <dt>中文字体</dt>
-            <dd id="raw-fonts">--</dd>
-          </div>
-          <div>
-            <dt>UA / 平台</dt>
-            <dd id="raw-ua">--</dd>
-          </div>
-        </dl>
-      </section>
+        </footer>
+      </article>
     </main>
 
     <script>

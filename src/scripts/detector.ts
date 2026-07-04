@@ -662,6 +662,7 @@ const setBusy = (busy: boolean) => {
 
 const runScan = async () => {
   setBusy(true);
+  delete document.body.dataset.verdict;
   scanState.textContent = "嗅探中";
   setPet("sniff", "趴下，贴地，开始闻浏览器留下来的味道。");
   await delay(850);
@@ -675,9 +676,11 @@ const runScan = async () => {
 
   if (result.score >= 55) {
     scanState.textContent = "命中";
+    document.body.dataset.verdict = "hit";
     setPet("laugh", "抓到了！证据链开始捧腹大笑。");
   } else {
     scanState.textContent = "未命中";
+    document.body.dataset.verdict = "miss";
     setPet("rage", "没抓到，他急了，脚都快跺出置信区间。");
   }
 
@@ -685,6 +688,7 @@ const runScan = async () => {
 };
 
 const resetScan = () => {
+  delete document.body.dataset.verdict;
   scanState.textContent = "待命";
   scoreValue.textContent = "--";
   scoreMeter.style.setProperty("--score-fill", "0%");
@@ -692,9 +696,9 @@ const resetScan = () => {
   summary.textContent = "点击开始后，本页会读取浏览器本地环境并请求一次 IP 地理信息。";
   signalList.innerHTML = `
     <article class="signal empty">
-      <div>
+      <div class="signal-main">
         <h3>等待第一次审查</h3>
-        <p>信号项会按权重、置信度和解释逐条展开。</p>
+        <p>证据项会按权重、置信度和解释逐条展开。</p>
       </div>
       <span class="points">--</span>
     </article>
