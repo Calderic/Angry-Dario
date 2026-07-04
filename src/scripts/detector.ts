@@ -71,6 +71,10 @@ const rawTimezone = el<HTMLElement>("#raw-timezone");
 const rawFonts = el<HTMLElement>("#raw-fonts");
 const rawUa = el<HTMLElement>("#raw-ua");
 
+const shareButtons = Array.from(
+  document.querySelectorAll<HTMLButtonElement>(".share-button"),
+);
+
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const setPet = (state: PetState, line: string) => {
@@ -653,6 +657,9 @@ const renderResult = (result: ScanResult) => {
   rawFonts.textContent = result.raw.fonts;
   rawUa.textContent = result.raw.ua;
   renderSignals(result.signals);
+  shareButtons.forEach((button) => {
+    button.disabled = false;
+  });
 };
 
 const setBusy = (busy: boolean) => {
@@ -709,6 +716,9 @@ const resetScan = () => {
   rawTimezone.textContent = "--";
   rawFonts.textContent = "--";
   rawUa.textContent = "--";
+  shareButtons.forEach((button) => {
+    button.disabled = true;
+  });
   setPet("idle", "抱臂等待证据。别动，统计学正在热身。");
 };
 

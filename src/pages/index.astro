@@ -6,19 +6,20 @@ import "../styles/global.css";
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#252c26" />
     <meta
       name="description"
       content="一个透明展示浏览器地域信号的静态单页审查仪。"
     />
-    <title>CCFH 中国环境信号审查仪</title>
+    <title>「Claude 中国用户」审查报告</title>
   </head>
   <body>
     <main class="desk">
       <article class="sheet" aria-labelledby="app-title">
         <header class="doc-head">
           <p class="doc-org">China Context Forensics HQ · 环境信号审查处（戏仿）</p>
-          <h1 id="app-title">中国大陆环境信号审查报告</h1>
+          <h1 id="app-title">「Claude 中国用户」审查报告</h1>
           <div class="doc-rule" aria-hidden="true"></div>
           <div class="doc-meta" aria-label="运行状态">
             <span>编号：CCFH〔2026〕审字第 007 号</span>
@@ -80,6 +81,15 @@ import "../styles/global.css";
               <span>不写入数据库</span>
             </div>
 
+            <div class="share-row">
+              <button id="share-scan" class="ghost-button share-button" type="button" disabled>
+                分享结果
+              </button>
+              <button id="export-png" class="ghost-button share-button" type="button" disabled>
+                保存 PNG
+              </button>
+            </div>
+
             <div class="stamp stamp-hit" aria-hidden="true">情况属实</div>
             <div class="stamp stamp-miss" aria-hidden="true">证据不足</div>
           </section>
@@ -135,6 +145,7 @@ import "../styles/global.css";
             本报告纯属整活，不具任何效力。评分全部在浏览器本地完成，仅在点击审查时向公开
             IP 接口发起一次查询，不记录、不上传、不建档。
           </p>
+          <p class="export-note" aria-hidden="true"></p>
           <div class="signoff">
             <p>CCFH 环境信号审查委员会</p>
             <p>二〇二六年七月四日</p>
@@ -157,6 +168,7 @@ import "../styles/global.css";
 
     <script>
       import "../scripts/detector";
+      import "../scripts/share";
     </script>
   </body>
 </html>
