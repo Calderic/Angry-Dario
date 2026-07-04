@@ -24,7 +24,7 @@ import "../styles/global.css";
           <div class="doc-meta" aria-label="运行状态">
             <span>编号：CCFH〔2026〕审字第 007 号</span>
             <span>模式：<strong>静态审查</strong></span>
-            <span>证据源：<strong>7 项</strong></span>
+            <span>证据源：<strong>8 项</strong></span>
             <span>状态：<strong id="scan-state" class="live-field">待命</strong></span>
           </div>
         </header>
@@ -32,14 +32,51 @@ import "../styles/global.css";
         <section class="folio">
           <section class="inspector" aria-label="审查员">
             <figure class="photo">
-              <div class="photo-stage">
+              <div class="photo-stage" id="pet-stage" data-state="idle">
                 <img
-                  id="pet-image"
                   class="pet"
+                  data-state="idle"
                   src="/assets/states/dario-idle.png"
-                  width="396"
+                  width="432"
                   height="793"
                   alt="Q 版审查宠物抱臂盯着屏幕"
+                  decoding="async"
+                />
+                <img
+                  class="pet"
+                  data-state="sniff"
+                  src="/assets/states/dario-sniff.png"
+                  width="432"
+                  height="793"
+                  alt="Q 版审查宠物趴在地上嗅线索"
+                  decoding="async"
+                />
+                <img
+                  class="pet"
+                  data-state="magnify"
+                  src="/assets/states/dario-magnify.png"
+                  width="432"
+                  height="793"
+                  alt="Q 版审查宠物用放大镜看线索"
+                  decoding="async"
+                />
+                <img
+                  class="pet"
+                  data-state="laugh"
+                  src="/assets/states/dario-laugh.png"
+                  width="432"
+                  height="793"
+                  alt="Q 版审查宠物捧腹大笑"
+                  decoding="async"
+                />
+                <img
+                  class="pet"
+                  data-state="rage"
+                  src="/assets/states/dario-rage.png"
+                  width="432"
+                  height="793"
+                  alt="Q 版审查宠物火冒三丈跺脚"
+                  decoding="async"
                 />
               </div>
               <figcaption>审查员工作照 · 工号 001</figcaption>
@@ -132,6 +169,10 @@ import "../styles/global.css";
             <div>
               <dt>中文字体</dt>
               <dd id="raw-fonts">--</dd>
+            </div>
+            <div>
+              <dt>WebRTC 出口</dt>
+              <dd id="raw-webrtc">--</dd>
             </div>
             <div>
               <dt>UA / 平台</dt>

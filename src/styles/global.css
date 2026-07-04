@@ -219,8 +219,9 @@ h1 {
 
 .photo-stage {
   position: relative;
-  display: grid;
-  place-items: end center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   min-height: 420px;
   overflow: hidden;
   /* 身高线拘留照背景 */
@@ -245,7 +246,9 @@ h1 {
   filter: blur(8px);
 }
 
+/* 五张状态图叠放在同一舞台，默认隐藏，由 data-state 点亮当前那张 */
 .pet {
+  display: none;
   position: relative;
   z-index: 1;
   width: min(72%, 250px);
@@ -254,21 +257,44 @@ h1 {
   object-fit: contain;
   filter: drop-shadow(0 10px 10px rgba(34, 31, 26, 0.25));
   transform-origin: bottom center;
-  transition:
-    width 180ms ease,
-    transform 220ms ease;
+  will-change: transform;
 }
 
-.pet.is-sniffing {
-  width: min(100%, 330px);
+/* 每个状态：先弹一次 pop 入场，再进入各自的循环动作。
+   pop 让「切换」显得干脆有弹性，而不是硬切。 */
+.photo-stage[data-state="idle"] .pet[data-state="idle"] {
+  display: block;
+  animation:
+    pet-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    breathe 3400ms ease-in-out 360ms infinite;
 }
 
-.pet.is-raging {
-  animation: stomp 360ms ease-in-out infinite;
+.photo-stage[data-state="sniff"] .pet[data-state="sniff"] {
+  display: block;
+  animation:
+    pet-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    sniff 2800ms ease-in-out 360ms infinite;
 }
 
-.pet.is-laughing {
-  animation: laugh 520ms ease-in-out infinite;
+.photo-stage[data-state="magnify"] .pet[data-state="magnify"] {
+  display: block;
+  animation:
+    pet-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    scanning 2400ms ease-in-out 360ms infinite;
+}
+
+.photo-stage[data-state="laugh"] .pet[data-state="laugh"] {
+  display: block;
+  animation:
+    pet-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    laugh 520ms ease-in-out 360ms infinite;
+}
+
+.photo-stage[data-state="rage"] .pet[data-state="rage"] {
+  display: block;
+  animation:
+    pet-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    stomp 360ms ease-in-out 360ms infinite;
 }
 
 .photo figcaption {
@@ -745,6 +771,69 @@ body[data-verdict="miss"] .stamp-miss {
 
 /* ---------------------------------- 动画 ---------------------------------- */
 
+/* 入场 pop：从略小回弹到原尺寸，让每次状态切换都干脆有弹性 */
+@keyframes pet-pop {
+  0% {
+    transform: scale(0.88) translateY(6px);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.04) translateY(0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 待命呼吸：极缓的上下与缩放起伏，像站着喘气 */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-3px) scale(1.012);
+  }
+}
+
+/* 探嗅：小幅低头凑近闻——轻轻偏向一侧、点一下头，再挪到另一侧，
+   位移和倾斜都压得很小，是「凑近嗅」而不是「大幅左右甩」。 */
+@keyframes sniff {
+  0%,
+  100% {
+    transform: translateX(-6px) translateY(2px) rotate(-1.4deg);
+  }
+
+  25% {
+    transform: translateX(-5px) translateY(0) rotate(-0.5deg);
+  }
+
+  50% {
+    transform: translateX(6px) translateY(2px) rotate(1.4deg);
+  }
+
+  75% {
+    transform: translateX(5px) translateY(0) rotate(0.5deg);
+  }
+}
+
+/* 放大镜扫视：举镜左右平移带轻微倾斜 */
+@keyframes scanning {
+  0%,
+  100% {
+    transform: translateX(-6px) rotate(-1.5deg);
+  }
+
+  50% {
+    transform: translateX(6px) rotate(1.5deg);
+  }
+}
+
 @keyframes stomp {
   0%,
   100% {
@@ -768,8 +857,9 @@ body[data-verdict="miss"] .stamp-miss {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pet.is-raging,
-  .pet.is-laughing {
+  /* 仍点亮当前状态图，只是去掉入场与循环动作
+     （与可见性规则同特异性、靠后覆盖，才能压掉那里的 animation） */
+  .photo-stage[data-state] .pet[data-state] {
     animation: none;
   }
 
@@ -780,8 +870,7 @@ body[data-verdict="miss"] .stamp-miss {
     transform: rotate(-8deg);
   }
 
-  .score-meter,
-  .pet {
+  .score-meter {
     transition: none;
   }
 }

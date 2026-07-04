@@ -33,16 +33,17 @@ type ScanResult = {
     locale: string;
     timezone: string;
     fonts: string;
+    webrtc: string;
     ua: string;
   };
 };
 
-const PET_IMAGES: Record<PetState, string> = {
-  idle: "/assets/states/dario-idle.png",
-  sniff: "/assets/states/dario-sniff.png",
-  magnify: "/assets/states/dario-magnify.png",
-  laugh: "/assets/states/dario-laugh.png",
-  rage: "/assets/states/dario-rage.png",
+type RtcInfo = {
+  supported: boolean;
+  localIps: string[];
+  publicIps: string[];
+  mdns: boolean;
+  error?: string;
 };
 
 const el = <T extends HTMLElement>(selector: string): T => {
@@ -55,7 +56,7 @@ const el = <T extends HTMLElement>(selector: string): T => {
 
 const runButton = el<HTMLButtonElement>("#run-scan");
 const resetButton = el<HTMLButtonElement>("#reset-scan");
-const petImage = el<HTMLImageElement>("#pet-image");
+const petStage = el<HTMLDivElement>("#pet-stage");
 const petLine = el<HTMLParagraphElement>("#pet-line");
 const scoreValue = el<HTMLSpanElement>("#score-value");
 const scoreMeter = el<HTMLDivElement>("#score-meter");
@@ -69,6 +70,7 @@ const rawLanguages = el<HTMLElement>("#raw-languages");
 const rawLocale = el<HTMLElement>("#raw-locale");
 const rawTimezone = el<HTMLElement>("#raw-timezone");
 const rawFonts = el<HTMLElement>("#raw-fonts");
+const rawWebrtc = el<HTMLElement>("#raw-webrtc");
 const rawUa = el<HTMLElement>("#raw-ua");
 
 const shareButtons = Array.from(
@@ -77,19 +79,10 @@ const shareButtons = Array.from(
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+// 五张状态图都常驻 DOM，只通过舞台上的 data-state 切换可见的那张，
+// 避免每次换 src 触发解码闪烁；新状态出现时会重放一次 pop 入场动画。
 const setPet = (state: PetState, line: string) => {
-  petImage.classList.remove("is-sniffing", "is-laughing", "is-raging");
-  petImage.src = PET_IMAGES[state];
-  petImage.alt = {
-    idle: "Q 版审查宠物抱臂盯着屏幕",
-    sniff: "Q 版审查宠物趴在地上嗅线索",
-    magnify: "Q 版审查宠物用放大镜看线索",
-    laugh: "Q 版审查宠物捧腹大笑",
-    rage: "Q 版审查宠物火冒三丈跺脚",
-  }[state];
-  if (state === "sniff") petImage.classList.add("is-sniffing");
-  if (state === "laugh") petImage.classList.add("is-laughing");
-  if (state === "rage") petImage.classList.add("is-raging");
+  petStage.dataset.state = state;
   petLine.textContent = line;
 };
 
@@ -627,6 +620,170 @@ const ipScore = (info: IpInfo) => {
   );
 };
 
+// 通过 RTCPeerConnection 收集 ICE 候选，抖出浏览器真实的本地 / 公网出口。
+// 现代浏览器会用 mDNS（*.local）掩盖局域网地址，公网候选则来自 STUN 反射。
+const gatherWebRtc = async (timeoutMs = 2200): Promise<RtcInfo> => {
+  const RTCPeer =
+    window.RTCPeerConnection ||
+    (window as unknown as { webkitRTCPeerConnection?: typeof RTCPeerConnection })
+      .webkitRTCPeerConnection;
+
+  if (!RTCPeer) {
+    return {
+      supported: false,
+      localIps: [],
+      publicIps: [],
+      mdns: false,
+      error: "浏览器未提供 RTCPeerConnection",
+    };
+  }
+
+  return await new Promise<RtcInfo>((resolve) => {
+    const localIps = new Set<string>();
+    const publicIps = new Set<string>();
+    let mdns = false;
+    let settled = false;
+    let pc: RTCPeerConnection;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      try {
+        pc.close();
+      } catch {
+        // 忽略关闭异常
+      }
+      resolve({
+        supported: true,
+        localIps: [...localIps],
+        publicIps: [...publicIps],
+        mdns,
+      });
+    };
+
+    try {
+      pc = new RTCPeer({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    } catch (error) {
+      resolve({
+        supported: false,
+        localIps: [],
+        publicIps: [],
+        mdns: false,
+        error: error instanceof Error ? error.message : "RTC 初始化失败",
+      });
+      return;
+    }
+
+    const ipRegex = /(?:\d{1,3}\.){3}\d{1,3}|(?:[a-f0-9]{1,4}:){2,}[a-f0-9:]+/i;
+
+    pc.onicecandidate = (event) => {
+      if (!event.candidate || !event.candidate.candidate) {
+        if (!event.candidate) finish();
+        return;
+      }
+      const candidate = event.candidate.candidate;
+      if (candidate.includes(".local")) {
+        mdns = true;
+        return;
+      }
+      const parts = candidate.split(" ");
+      const ip = parts[4] ?? "";
+      const typIndex = parts.indexOf("typ");
+      const type = typIndex >= 0 ? parts[typIndex + 1] : "";
+      if (!ipRegex.test(ip)) return;
+      if (type === "srflx" || type === "prflx") {
+        publicIps.add(ip);
+      } else {
+        localIps.add(ip);
+      }
+    };
+
+    const timer = window.setTimeout(finish, timeoutMs);
+
+    try {
+      pc.createDataChannel("ccfh-probe");
+      pc.createOffer()
+        .then((offer) => pc.setLocalDescription(offer))
+        .catch(() => finish());
+    } catch {
+      finish();
+    }
+  });
+};
+
+const WEBRTC_WEIGHT = 4;
+
+const webrtcScore = (rtc: RtcInfo, info: IpInfo) => {
+  if (!rtc.supported) {
+    return makeSignal(
+      "webrtc",
+      "WebRTC 出口穿透",
+      rtc.error || "浏览器未开放 WebRTC",
+      0,
+      WEBRTC_WEIGHT,
+      "弱",
+      "浏览器禁用或不支持 WebRTC，拿不到额外的网络出口线索。",
+    );
+  }
+
+  const httpIp = info.error ? "" : info.ip || "";
+  const hasPublic = rtc.publicIps.length > 0;
+  const leakedPublic = rtc.publicIps.join(", ");
+  const localSummary = rtc.mdns
+    ? "本地地址被 mDNS 掩盖"
+    : rtc.localIps.length
+      ? `本地 ${rtc.localIps.join(", ")}`
+      : "未暴露本地地址";
+
+  // 公网候选与网页看到的 IP 不一致 —— 典型的代理 / VPN 分流特征。
+  if (hasPublic && httpIp && !rtc.publicIps.includes(httpIp)) {
+    return makeSignal(
+      "webrtc",
+      "WebRTC 出口穿透",
+      `${leakedPublic}（网页 IP ${httpIp}）· ${localSummary}`,
+      Math.round(WEBRTC_WEIGHT * 0.5),
+      WEBRTC_WEIGHT,
+      "中",
+      "WebRTC 暴露的公网出口和网页 IP 对不上，是代理 / VPN 分流的典型特征——IP 能换，但系统时区照样会把大陆环境抖出来。",
+    );
+  }
+
+  if (hasPublic) {
+    return makeSignal(
+      "webrtc",
+      "WebRTC 出口穿透",
+      `${leakedPublic} · ${localSummary}`,
+      0,
+      WEBRTC_WEIGHT,
+      "弱",
+      "WebRTC 公网出口与网页 IP 一致，看起来是直连，没有额外代理线索。",
+    );
+  }
+
+  if (rtc.mdns || rtc.localIps.length) {
+    return makeSignal(
+      "webrtc",
+      "WebRTC 出口穿透",
+      `${localSummary} · 无公网候选`,
+      0,
+      WEBRTC_WEIGHT,
+      "弱",
+      "只拿到本地候选、没有公网出口：可能是隐私加固，也可能是 STUN 被网络拦截（大陆常见），信号偏弱。",
+    );
+  }
+
+  return makeSignal(
+    "webrtc",
+    "WebRTC 出口穿透",
+    "未收集到任何候选",
+    0,
+    WEBRTC_WEIGHT,
+    "弱",
+    "没有收集到任何 ICE 候选，可能被浏览器策略或网络环境完全拦截。",
+  );
+};
+
 const collectSignals = async (): Promise<ScanResult> => {
   const nav = navigator as Navigator & {
     userAgentData?: {
@@ -636,7 +793,7 @@ const collectSignals = async (): Promise<ScanResult> => {
     };
   };
   const languages = navigator.languages?.length ? [...navigator.languages] : [navigator.language].filter(Boolean);
-  const ipInfo = await fetchIpInfo();
+  const [ipInfo, rtcInfo] = await Promise.all([fetchIpInfo(), gatherWebRtc()]);
   const signals = [
     ipScore(ipInfo),
     languageScore(languages),
@@ -644,6 +801,7 @@ const collectSignals = async (): Promise<ScanResult> => {
     timezoneScore(),
     formatPatternScore(),
     fontScore(),
+    webrtcScore(rtcInfo, ipInfo),
     uaScore(),
   ];
   const maxScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
@@ -698,6 +856,16 @@ const collectSignals = async (): Promise<ScanResult> => {
       locale: `${Intl.DateTimeFormat().resolvedOptions().locale} · ${Intl.NumberFormat().resolvedOptions().locale}`,
       timezone: `${timeOptions.timeZone || "未知"} · getTimezoneOffset=${offset}`,
       fonts: detectedFonts,
+      webrtc: !rtcInfo.supported
+        ? rtcInfo.error || "不支持"
+        : [
+            rtcInfo.publicIps.length ? `公网 ${rtcInfo.publicIps.join(", ")}` : "无公网候选",
+            rtcInfo.mdns
+              ? "本地被 mDNS 掩盖"
+              : rtcInfo.localIps.length
+                ? `本地 ${rtcInfo.localIps.join(", ")}`
+                : "无本地候选",
+          ].join(" · "),
       ua: `${platform}${brands ? ` · ${brands}` : ""} · ${navigator.userAgent}`,
     },
   };
@@ -738,6 +906,7 @@ const renderResult = (result: ScanResult) => {
   rawLocale.textContent = result.raw.locale;
   rawTimezone.textContent = result.raw.timezone;
   rawFonts.textContent = result.raw.fonts;
+  rawWebrtc.textContent = result.raw.webrtc;
   rawUa.textContent = result.raw.ua;
   renderSignals(result.signals);
   shareButtons.forEach((button) => {
@@ -753,15 +922,25 @@ const setBusy = (busy: boolean) => {
 const runScan = async () => {
   setBusy(true);
   delete document.body.dataset.verdict;
+
+  // 一边贴地左右嗅探，一边真正开始收集 WebRTC / IP（后台并行，收满约需两三秒）
+  const resultPromise = collectSignals();
+
   scanState.textContent = "嗅探中";
-  setPet("sniff", "趴下，贴地，开始闻浏览器留下来的味道。");
-  await delay(850);
+  setPet("sniff", "左边闻一鼻子，右边闻一鼻子——语言、时区、字体的味儿全留在浏览器里。");
+  await delay(2600);
 
   scanState.textContent = "放大中";
-  setPet("magnify", "放大镜就位，语言、时区、字体，一个都别想溜。");
+  setPet("magnify", "放大镜就位，locale、数字格式这些小辫子一根根揪出来。");
+  await delay(1700);
+
+  scanState.textContent = "穿透中";
+  setPet("magnify", "别以为挂了代理就干净，WebRTC 正把你真实的网络出口一点点抖出来。");
+
+  // 等真实检测收尾（WebRTC 收集若还没到超时，这里会把过程感补足）
+  const result = await resultPromise;
   await delay(500);
 
-  const result = await collectSignals();
   renderResult(result);
 
   if (result.score >= 52) {
@@ -798,6 +977,7 @@ const resetScan = () => {
   rawLocale.textContent = "--";
   rawTimezone.textContent = "--";
   rawFonts.textContent = "--";
+  rawWebrtc.textContent = "--";
   rawUa.textContent = "--";
   shareButtons.forEach((button) => {
     button.disabled = true;
