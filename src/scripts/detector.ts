@@ -58,7 +58,7 @@ const resetButton = el<HTMLButtonElement>("#reset-scan");
 const petImage = el<HTMLImageElement>("#pet-image");
 const petLine = el<HTMLParagraphElement>("#pet-line");
 const scoreValue = el<HTMLSpanElement>("#score-value");
-const scoreDial = el<HTMLDivElement>(".score-dial");
+const scoreMeter = el<HTMLDivElement>("#score-meter");
 const verdict = el<HTMLParagraphElement>("#verdict");
 const summary = el<HTMLParagraphElement>("#summary");
 const signalList = el<HTMLDivElement>("#signal-list");
@@ -619,9 +619,12 @@ const collectSignals = async (): Promise<ScanResult> => {
 const renderSignals = (signals: Signal[]) => {
   signalList.innerHTML = signals
     .map(
-      (signal) => `
-        <article class="signal ${signal.tone}">
-          <div>
+      (signal) => {
+        const fill = signal.weight === 0 ? 0 : Math.round((Math.abs(signal.score) / signal.weight) * 100);
+
+        return `
+        <article class="signal ${signal.tone}" style="--signal-fill: ${clamp(fill, 0, 100)}%">
+          <div class="signal-main">
             <h3>${escapeText(signal.label)}</h3>
             <p><strong>${escapeText(signal.value)}</strong>。${escapeText(signal.reason)}</p>
             <div class="meta">
@@ -632,14 +635,15 @@ const renderSignals = (signals: Signal[]) => {
           </div>
           <span class="points">${signal.score > 0 ? "+" : ""}${signal.score}</span>
         </article>
-      `,
+      `;
+      },
     )
     .join("");
 };
 
 const renderResult = (result: ScanResult) => {
   scoreValue.textContent = String(result.score);
-  scoreDial.style.setProperty("--score-fill", `${result.score}%`);
+  scoreMeter.style.setProperty("--score-fill", `${result.score}%`);
   verdict.textContent = result.verdict;
   summary.textContent = result.summary;
   rawIp.textContent = result.raw.ip;
@@ -683,7 +687,7 @@ const runScan = async () => {
 const resetScan = () => {
   scanState.textContent = "待命";
   scoreValue.textContent = "--";
-  scoreDial.style.setProperty("--score-fill", "0%");
+  scoreMeter.style.setProperty("--score-fill", "0%");
   verdict.textContent = "尚未审查";
   summary.textContent = "点击开始后，本页会读取浏览器本地环境并请求一次 IP 地理信息。";
   signalList.innerHTML = `

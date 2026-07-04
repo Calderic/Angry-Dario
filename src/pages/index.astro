@@ -14,82 +14,110 @@ import "../styles/global.css";
     <title>CCFH 中国环境信号审查仪</title>
   </head>
   <body>
-    <main class="shell">
-      <section class="console" aria-labelledby="app-title">
-        <div class="brand-row">
+    <main class="app-shell">
+      <header class="topbar" aria-labelledby="app-title">
+        <div class="brand-lockup">
           <span class="brand-mark" aria-hidden="true">CC</span>
           <div>
-            <p class="eyebrow">China Context Forensics HUD</p>
+            <p class="eyebrow">China Context Forensics</p>
             <h1 id="app-title">中国环境信号审查仪</h1>
           </div>
         </div>
 
-        <div class="pet-stage" data-pet-stage>
-          <div class="scan-grid" aria-hidden="true"></div>
-          <img
-            id="pet-image"
-            class="pet"
-            src="/assets/states/dario-idle.png"
-            width="396"
-            height="793"
-            alt="Q 版审查宠物抱臂盯着屏幕"
-          />
-          <p id="pet-line" class="pet-line">抱臂等待证据。别动，统计学正在热身。</p>
-        </div>
-
-        <div class="score-panel">
-          <div class="score-dial" aria-label="中国大陆环境信号分数">
-            <span id="score-value">--</span>
-            <span class="score-unit">/100</span>
+        <div class="top-metrics" aria-label="运行状态">
+          <div class="top-metric">
+            <span>模式</span>
+            <strong>静态审查</strong>
           </div>
-          <div>
-            <p id="verdict" class="verdict">尚未审查</p>
-            <p id="summary" class="summary">
-              点击开始后，本页会读取浏览器本地环境并请求一次 IP 地理信息。
-            </p>
+          <div class="top-metric">
+            <span>证据源</span>
+            <strong>7 项</strong>
+          </div>
+          <div class="top-metric">
+            <span>状态</span>
+            <strong id="scan-state">待命</strong>
           </div>
         </div>
+      </header>
 
-        <div class="actions">
-          <button id="run-scan" class="primary-button" type="button">
-            <span class="button-icon" aria-hidden="true">▶</span>
-            开始审查
-          </button>
-          <button id="reset-scan" class="ghost-button" type="button">
-            <span class="button-icon" aria-hidden="true">↺</span>
-            重置
-          </button>
-        </div>
-
-        <p class="privacy-note">
-          静态页面，本地评分；IP 查询会访问公开地理接口，其余浏览器信号不离开页面。
-        </p>
-      </section>
-
-      <section class="evidence" aria-labelledby="evidence-title">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Evidence Ledger</p>
-            <h2 id="evidence-title">证据账本</h2>
+      <section class="workbench" aria-label="审查工作台">
+        <section class="pet-panel" aria-label="审查宠物">
+          <div class="pet-stage">
+            <div class="scan-grid" aria-hidden="true"></div>
+            <img
+              id="pet-image"
+              class="pet"
+              src="/assets/states/dario-idle.png"
+              width="396"
+              height="793"
+              alt="Q 版审查宠物抱臂盯着屏幕"
+            />
+            <p id="pet-line" class="pet-line">抱臂等待证据。别动，统计学正在热身。</p>
           </div>
-          <span id="scan-state" class="status-pill">待命</span>
-        </div>
 
-        <div id="signal-list" class="signal-list" aria-live="polite">
-          <article class="signal empty">
+          <div class="control-row">
+            <button id="run-scan" class="primary-button" type="button">
+              <span class="button-icon" aria-hidden="true">▶</span>
+              开始审查
+            </button>
+            <button id="reset-scan" class="icon-button" type="button" aria-label="重置">
+              ↺
+            </button>
+          </div>
+        </section>
+
+        <section class="result-panel" aria-labelledby="result-title">
+          <div class="result-head">
             <div>
-              <h3>等待第一次审查</h3>
-              <p>信号项会按权重、置信度和解释逐条展开。</p>
+              <p class="eyebrow">Score</p>
+              <h2 id="result-title">大陆环境指数</h2>
             </div>
-            <span class="points">--</span>
-          </article>
-        </div>
+            <div class="score-readout" aria-label="中国大陆环境信号分数">
+              <span id="score-value">--</span>
+              <span>/100</span>
+            </div>
+          </div>
+
+          <div class="score-track" aria-hidden="true">
+            <div id="score-meter" class="score-meter"></div>
+          </div>
+
+          <p id="verdict" class="verdict">尚未审查</p>
+          <p id="summary" class="summary">
+            IP、语言、时区、字体、格式化习惯和 UA 线索会汇总成一个可解释分数。
+          </p>
+
+          <div class="audit-notes" aria-label="审查边界">
+            <span>本地评分</span>
+            <span>公开 IP 探针</span>
+            <span>不写入数据库</span>
+          </div>
+        </section>
+
+        <section class="evidence-panel" aria-labelledby="evidence-title">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Evidence Ledger</p>
+              <h2 id="evidence-title">证据账本</h2>
+            </div>
+          </div>
+
+          <div id="signal-list" class="signal-list" aria-live="polite">
+            <article class="signal empty">
+              <div class="signal-main">
+                <h3>等待第一次审查</h3>
+                <p>证据项会按权重、置信度和解释逐条展开。</p>
+              </div>
+              <span class="points">--</span>
+            </article>
+          </div>
+        </section>
       </section>
 
-      <section class="raw" aria-labelledby="raw-title">
+      <section class="raw-panel" aria-labelledby="raw-title">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Raw Browser Clues</p>
+            <p class="eyebrow">Raw Clues</p>
             <h2 id="raw-title">原始线索</h2>
           </div>
         </div>
